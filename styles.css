@@ -1,0 +1,92 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+nav ul {
+    list-style-type: none;
+    padding: 0;
+    background-color: #333;
+    overflow: hidden;
+}
+
+nav ul li {
+    float: left;
+}
+
+nav ul li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+nav ul li a:hover {
+    background-color: #111;
+}
+
+header, section, footer {
+    padding: 20px;
+    text-align: center;
+}
+
+header {
+    background-color: #f4f4f4;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+label {
+    margin-top: 10px;
+}
+
+input, button {
+    margin-bottom: 10px;
+    padding: 10px;
+}
+
+button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #218838;
+}
+
+footer {
+    background-color: #f4f4f4;
+    position: fixed;
+    width: 100%;
+    bottom: 0;
+}
+
+#calc-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#calc-container div {
+    margin-bottom: 20px;
+}
+
+#readings-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#readings-container div {
+    margin-bottom: 20px;
+}

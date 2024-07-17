@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Electricity Meter Readings</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="datainsertion.html">Data Insertion</a></li>
+            <li><a href="History.html">History</a></li>
+            <li><a href="Calculation.html">Calculation</a></li>
+            <li><a href="generatePDF.html">Generate PDF</a></li>
+        </ul>
+    </nav>
+
+    <section id="calculation">
+        <h2>Calculation</h2>
+        <div id="calc-container">
+            <div>
+                <h3>Units Used from Date to Date</h3>
+                <form id="search-meter-form">
+                    <label for="searchMeterId">Meter ID:</label>
+                    <input type="text" id="searchMeterId" required>
+                    <button type="submit">Search</button>
+                </form>
+                <form id="date-range-form" style="display: none;">
+                    <label for="fromReading">From:</label>
+                    <select id="fromReading" required></select>
+                    <label for="toReading">To:</label>
+                    <select id="toReading" required></select>
+                    <button type="submit">Calculate</button>
+                </form>
+                <div id="date-range-result"></div>
+            </div>
+            <div>
+                <h3>Units Consumption Per Day & Total Unit</h3>
+                <form id="units-form">
+                    <label for="prevReading">Previous Reading:</label>
+                    <input type="number" id="prevReading" required>
+                    <label for="currReading">Current Reading:</label>
+                    <input type="number" id="currReading" required>
+                    <label for="readingPeriod">Reading Period:</label>
+                    <select id="readingPeriod" required>
+                        <option value="Inst">Inst</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                    </select>
+                    <button type="submit">Calculate</button>
+                </form>
+                <div id="units-result"></div>
+            </div>
+            <div>
+                <h3>Units by Watt * Hour</h3>
+                <form id="watt-hour-form">
+                    <label for="watts">Watts:</label>
+                    <input type="number" id="watts" required>
+                    <label for="hours">Hours:</label>
+                    <input type="number" id="hours" required>
+                    <button type="submit">Calculate</button>
+                </form>
+                <div id="watt-hour-result"></div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2024 Electricity Meter Readings. All rights reserved.</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script>
+        // Firebase configuration and initialization
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMW7DgDnQzxOGRB6jkWPBYrp4xT-L_beY",
+    authDomain: "snake-7a9a9.firebaseapp.com",
+    databaseURL: "https://snake-7a9a9-default-rtdb.firebaseio.com",
+    projectId: "snake-7a9a9",
+    storageBucket: "snake-7a9a9.appspot.com",
+    messagingSenderId: "473671669706",
+    appId: "1:473671669706:web:3a0386d468d9715f9aa133"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Function to fetch and display readings for a given meter ID
+        function fetchReadings(e) {
+            e.preventDefault();
+
+            var meterId = document.getElementById('searchMeterId').value;
+            console.log(`Fetching readings for meter ID: ${meterId}`);
+
+            db.collection('readings')
+                .where('meterId', '==', meterId)
+                .orderBy('readingDate')
+                .get()
+                .then((querySnapshot) => {
+                    let readings = [];
+                    
+                    querySnapshot.forEach((doc) => {
+                        readings.push(doc.data());
+                    });
+
+                    console.log('Fetched readings:', readings);
+
+                    if (readings.length < 2) {
+                        document.getElementById('date-range-result').textContent = 'Not enough data to calculate units used.';
+                        return;
+                    }
+
+                    let fromSelect = document.getElementById('fromReading');
+                    let toSelect = document.getElementById('toReading');
+
+                    fromSelect.innerHTML = '';
+                    toSelect.innerHTML = '';
+
+                    readings.forEach((reading) => {
+                        let optionFrom = document.createElement('option');
+                        optionFrom.value = reading.reading;
+                        optionFrom.textContent = `${reading.readingDate}: ${reading.reading}`;
+                        fromSelect.appendChild(optionFrom);
+
+                        let optionTo = document.createElement('option');
+                        optionTo.value = reading.reading;
+                        optionTo.textContent = `${reading.readingDate}: ${reading.reading}`;
+                        toSelect.appendChild(optionTo);
+                    });
+
+                    document.getElementById('date-range-form').style.display = 'block';
+                })
+                .catch((error) => {
+                    console.error("Error fetching readings:", error);
+                    document.getElementById('date-range-result').textContent = 'Error fetching readings. Please try again later.';
+                });
+        }
+
+        // Function to calculate units used from selected readings
+        function calculateUnitsUsedFromDateRange(e) {
+            e.preventDefault();
+
+            var fromReading = parseFloat(document.getElementById('fromReading').value);
+            var toReading = parseFloat(document.getElementById('toReading').value);
+
+            if (toReading <= fromReading) {
+                document.getElementById('date-range-result').textContent = 'To reading must be greater than from reading.';
+                return;
+            }
+
+            let unitsUsed = toReading - fromReading;
+            document.getElementById('date-range-result').textContent = `Units used: ${unitsUsed}`;
+        }
+
+        // Function to calculate units per day, week, and total units
+        function calculateUnits(e) {
+            e.preventDefault();
+
+            var prevReading = parseFloat(document.getElementById('prevReading').value);
+            var currReading = parseFloat(document.getElementById('currReading').value);
+            var period = document.getElementById('readingPeriod').value;
+
+            if (currReading <= prevReading) {
+                document.getElementById('units-result').textContent = 'Current reading must be greater than previous reading.';
+                return;
+            }
+
+            var unitsUsed = currReading - prevReading;
+            var unitsPerPeriod;
+
+            switch (period) {
+                case 'Inst':
+                    unitsPerPeriod = unitsUsed / 1;
+                    break;
+                case 'week':
+                    unitsPerPeriod = unitsUsed / 7;
+                    break;
+                case 'month':
+                    unitsPerPeriod = unitsUsed / 30;
+                    break;
+            }
+
+            document.getElementById('units-result').textContent = `Units consumed per Day In a ${period}: ${unitsPerPeriod.toFixed(2)}`;
+            document.getElementById('total-units-result').textContent = `Total units used: ${unitsUsed.toFixed(2)}`;
+        }
+
+        // Function to calculate units by watt-hour
+        function calculateUnitsByWattHour(e) {
+            e.preventDefault();
+
+            var watts = parseFloat(document.getElementById('watts').value);
+            var hours = parseFloat(document.getElementById('hours').value);
+
+            var unitsUsed = (watts * hours) / 1000; // Converting watt-hours to kilowatt-hours
+            document.getElementById('watt-hour-result').textContent = `Units consumed: ${unitsUsed.toFixed(2)} kWh`;
+        }
+
+        // Event listeners for form submissions
+        document.getElementById('search-meter-form').addEventListener('submit', fetchReadings);
+        document.getElementById('date-range-form').addEventListener('submit', calculateUnitsUsedFromDateRange);
+        document.getElementById('units-form').addEventListener('submit', calculateUnits);
+        document.getElementById('watt-hour-form').addEventListener('submit', calculateUnitsByWattHour);
+    </script>
+</body>
+</html>

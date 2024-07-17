@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Electricity Meter Readings - History</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .meter-group {
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+
+.meter-group h3 {
+    font-size: 18px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.meter-group div {
+    margin-bottom: 8px;
+}
+
+.meter-group hr {
+    margin: 8px 0;
+    border: none;
+    border-top: 1px solid #ccc;
+}
+
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href= datainsertion.html>Data Insertion</a></li>
+            <li><a href= History.html>History</a></li>
+            <li><a href= Calculation.html>Calculation</a></li>
+            <li><a href="generatePDF.html">Generate PDF</a></li>
+        </ul>
+    </nav>
+
+    <header>
+        <h1>Electricity Meter Readings - History</h1>
+    </header>
+
+    <section id="history">
+        <h2>History</h2>
+        <div id="readings-container"></div>
+    </section>
+
+    <footer>
+        <p>&copy; 2024 Electricity Meter Readings. All rights reserved.</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script>
+// Firebase configuration and initialization
+const firebaseConfig = {
+    apiKey: "AIzaSyBMW7DgDnQzxOGRB6jkWPBYrp4xT-L_beY",
+    authDomain: "snake-7a9a9.firebaseapp.com",
+    databaseURL: "https://snake-7a9a9-default-rtdb.firebaseio.com",
+    projectId: "snake-7a9a9",
+    storageBucket: "snake-7a9a9.appspot.com",
+    messagingSenderId: "473671669706",
+    appId: "1:473671669706:web:3a0386d468d9715f9aa133"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Function to fetch and display meter readings
+function fetchMeterReadings() {
+    const readingsContainer = document.getElementById('readings-container');
+
+    db.collection('readings').orderBy('meterId').get().then((querySnapshot) => {
+        let currentMeterId = null;
+        let meterGroupDiv = null;
+
+        querySnapshot.forEach((doc) => {
+            const reading = doc.data();
+
+            // Check if this reading has a different meterId than the current group
+            if (reading.meterId !== currentMeterId) {
+                // Create a new group for this meterId
+                currentMeterId = reading.meterId;
+                meterGroupDiv = document.createElement('div');
+                meterGroupDiv.classList.add('meter-group');
+                const heading = document.createElement('h3');
+                heading.textContent = `Meter ID: ${currentMeterId}`;
+                meterGroupDiv.appendChild(heading);
+                readingsContainer.appendChild(meterGroupDiv);
+            }
+
+            // Create a div for each reading
+            const readingElement = document.createElement('div');
+            readingElement.innerHTML = `
+                <p>Reading: ${reading.reading}</p>
+                <p>Date: ${reading.readingDate}</p>
+                <hr>
+            `;
+            meterGroupDiv.appendChild(readingElement);
+        });
+    }).catch((error) => {
+        console.error("Error fetching meter readings: ", error);
+    });
+}
+
+// Call fetchMeterReadings when the page loads
+document.addEventListener('DOMContentLoaded', fetchMeterReadings);
+ </script>

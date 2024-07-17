@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate PDF of History Readings</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.14/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="datainsertion.html">Data Insertion</a></li>
+            <li><a href="History.html">History</a></li>
+            <li><a href="Calculation.html">Calculation</a></li>
+            <li><a href="generatePDF.html">Generate PDF</a></li>
+        </ul>
+    </nav>
+
+    <section id="generate-pdf">
+        <h2>Generate PDF of History Readings</h2>
+        <form id="pdf-form">
+            <label for="pdfMeterIds">Meter IDs:</label>
+            <select id="pdfMeterIds" multiple required></select>
+            <label for="pdfFromDate">From Date:</label>
+            <select id="pdfFromDate" required></select>
+            <label for="pdfToDate">To Date:</label>
+            <select id="pdfToDate" required></select>
+            <button type="submit">Generate PDF</button>
+        </form>
+        <div id="pdf-result"></div>
+    </section>
+
+    <footer>
+        <p>&copy; 2024 Electricity Meter Readings. All rights reserved.</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-firestore.js"></script>
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // Firebase configuration and initialization
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMW7DgDnQzxOGRB6jkWPBYrp4xT-L_beY",
+            authDomain: "snake-7a9a9.firebaseapp.com",
+            databaseURL: "https://snake-7a9a9-default-rtdb.firebaseio.com",
+            projectId: "snake-7a9a9",
+            storageBucket: "snake-7a9a9.appspot.com",
+            messagingSenderId: "473671669706",
+            appId: "1:473671669706:web:3a0386d468d9715f9aa133"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Function to fetch and display meter IDs
+        function fetchMeterIds() {
+            db.collection('readings')
+                .get()
+                .then((querySnapshot) => {
+                    let meterIds = new Set();
+
+                    querySnapshot.forEach((doc) => {
+                        meterIds.add(doc.data().meterId);
+                    });
+
+                    let meterIdSelect = document.getElementById('pdfMeterIds');
+                    meterIds.forEach((meterId) => {
+                        let option = document.createElement('option');
+                        option.value = meterId;
+                        option.textContent = meterId;
+                        meterIdSelect.appendChild(option);
+                    });
+
+                    // Trigger change event to load dates for the first meter ID
+                    loadDatesForMeterIds();
+                })
+                .catch((error) => {
+                    console.error("Error fetching meter IDs:", error);
+                });
+        }
+
+        // Function to load dates for the selected meter IDs
+        function loadDatesForMeterIds() {
+            let meterIds = Array.from(document.getElementById('pdfMeterIds').selectedOptions).map(option => option.value);
+
+            db.collection('readings')
+                .where('meterId', 'in', meterIds)
+                .orderBy('readingDate')
+                .get()
+                .then((querySnapshot) => {
+                    let fromDateSelect = document.getElementById('pdfFromDate');
+                    let toDateSelect = document.getElementById('pdfToDate');
+
+                    fromDateSelect.innerHTML = '';
+                    toDateSelect.innerHTML = '';
+
+                    querySnapshot.forEach((doc) => {
+                        let readingDate = new Date(doc.data().readingDate);
+
+                        let fromOption = document.createElement('option');
+                        fromOption.value = readingDate.toISOString();
+                        fromOption.textContent = readingDate.toDateString();
+                        fromDateSelect.appendChild(fromOption);
+
+                        let toOption = document.createElement('option');
+                        toOption.value = readingDate.toISOString();
+                        toOption.textContent = readingDate.toDateString();
+                        toDateSelect.appendChild(toOption);
+                    });
+                })
+                .catch((error) => {
+                    console.error("Error loading dates for meter IDs:", error);
+                });
+        }
+
+        // Function to generate PDF of history readings for multiple meters
+        function generatePDF(e) {
+            e.preventDefault();
+
+            var meterIds = Array.from(document.getElementById('pdfMeterIds').selectedOptions).map(option => option.value);
+            var fromDate = new Date(document.getElementById('pdfFromDate').value);
+            var toDate = new Date(document.getElementById('pdfToDate').value);
+
+            if (toDate <= fromDate) {
+                document.getElementById('pdf-result').textContent = 'To date must be greater than from date.';
+                return;
+            }
+
+            console.log("Generating PDF for Meter IDs:", meterIds);
+            console.log("From Date:", fromDate);
+            console.log("To Date:", toDate);
+
+            db.collection('readings')
+                .where('meterId', 'in', meterIds)
+                .get()
+                .then((querySnapshot) => {
+                    let readingsByMeter = {};
+
+                    querySnapshot.forEach((doc) => {
+                        let readingData = doc.data();
+                        let readingDate = new Date(readingData.readingDate);
+                        
+                        if (readingDate >= fromDate && readingDate <= toDate) {
+                            if (!readingsByMeter[readingData.meterId]) {
+                                readingsByMeter[readingData.meterId] = [];
+                            }
+                            readingsByMeter[readingData.meterId].push(readingData);
+                        }
+                    });
+
+                    console.log("Readings found:", readingsByMeter);
+
+                    if (Object.keys(readingsByMeter).length === 0) {
+                        document.getElementById('pdf-result').textContent = 'No readings found for the selected date range.';
+                        return;
+                    }
+
+                    const doc = new jsPDF();
+                    let pageHeight = doc.internal.pageSize.height;
+                    let pageWidth = doc.internal.pageSize.width;
+                    let margin = 10;
+                    let y = margin;
+
+                    Object.keys(readingsByMeter).forEach((meterId, index) => {
+                        if (index > 0) {
+                            doc.addPage();
+                            y = margin;
+                        }
+
+                        doc.text(`Meter ID: ${meterId}`, margin, y);
+                        y += 10;
+                        doc.text(`From: ${fromDate.toDateString()} To: ${toDate.toDateString()}`, margin, y);
+                        y += 10;
+
+                        let tableData = readingsByMeter[meterId].map(reading => {
+                            let readingDate = new Date(reading.readingDate);
+                            return [readingDate.toDateString(), reading.reading];
+                        });
+
+                        doc.autoTable({
+                            head: [['Date', 'Reading']],
+                            body: tableData,
+                            startY: y,
+                            margin: { left: margin, right: margin }
+                        });
+
+                        y = doc.autoTable.previous.finalY + 10;
+                    });
+
+                    doc.save(`readings_${fromDate.toISOString().split('T')[0]}_${toDate.toISOString().split('T')[0]}.pdf`);
+                })
+                .catch((error) => {
+                    console.error("Error generating PDF:", error);
+                    document.getElementById('pdf-result').textContent = 'Error generating PDF. Please try again later.';
+                });
+        }
+
+        // Event listener for PDF generation form submission
+        document.getElementById('pdf-form').addEventListener('submit', generatePDF);
+        // Event listener for meter ID change
+        document.getElementById('pdfMeterIds').addEventListener('change', loadDatesForMeterIds);
+
+        // Fetch meter IDs on page load
+        document.addEventListener('DOMContentLoaded', fetchMeterIds);
+    </script>
+</body>
+</html>
